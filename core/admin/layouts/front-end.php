@@ -15,6 +15,25 @@
 				}
 			}
 		?>
+		<?
+		// Configuration based CSS
+		if (isset($bigtree["config"]["admin_css"]) && is_array($bigtree["config"]["admin_css"])) {
+			foreach ($bigtree["config"]["admin_css"] as $style) {
+		?>
+		<link rel="stylesheet" href="<?=ADMIN_ROOT?>css/<?=$style?>" type="text/css" media="screen" />
+		<?
+				}
+			}
+
+		// Configuration based JS
+		if (isset($bigtree["config"]["admin_js"]) && is_array($bigtree["config"]["admin_js"])) {
+			foreach ($bigtree["config"]["admin_js"] as $script) {
+		?>
+		<script src="<?=ADMIN_ROOT?>js/<?=$script?>"></script>
+		<?
+				}
+			}
+		?>
 		<script src="<?=ADMIN_ROOT?>js/lib.js"></script>
 		<script src="<?=ADMIN_ROOT?>js/main.js"></script>
 		<script src="<?=ADMIN_ROOT?>js/pages.js"></script>
