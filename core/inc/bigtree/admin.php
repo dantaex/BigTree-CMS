@@ -354,7 +354,7 @@
 
 		/*
 			Function: canModifyChildren
-				Checks whether the logged in user can modify all child pages or a page.
+				Checks whether the logged in user can modify all child pages of a page.
 				Assumes we already know that we're a publisher of the parent.
 
 			Parameters:
@@ -400,7 +400,7 @@
 			$user = sqlfetch(sqlquery("SELECT * FROM bigtree_users WHERE change_password_hash = '$hash'"));
 
 			$phpass = new PasswordHash($bigtree["config"]["password_depth"], TRUE);
-			$password = sqlescape($phpass->HashPassword($password));
+			$password = sqlescape($phpass->HashPassword(trim($password)));
 
 			sqlquery("UPDATE bigtree_users SET password = '$password', change_password_hash = '' WHERE id = '".$user["id"]."'");
 			sqlquery("UPDATE bigtree_login_bans SET expires = DATE_SUB(NOW(),INTERVAL 1 MINUTE) WHERE user = '".$user["id"]."'");
@@ -424,14 +424,14 @@
 				$module = $module["id"];
 			}
 
-			if ($this->Level > 0) {
-				return true;
-			}
-
 			if (is_array($action) && $action["level"] > $this->Level) {
 				return false;
 			}
 
+			if ($this->Level > 0) {
+				return true;
+			}
+			
 			if ($this->Permissions["module"][$module] && $this->Permissions["module"][$module] != "n") {
 				return true;
 			}
@@ -1148,7 +1148,7 @@
 				view - A module view ID to use (if type = view).
 
 			Returns:
-				The route created for the module action.
+				The id of the report.
 		*/
 
 		function createModuleReport($module,$title,$table,$type,$filters,$fields = "",$parser = "",$view = "") {
@@ -2509,7 +2509,7 @@
 				return false;
 			}
 
-			$hash = sqlescape(md5(md5(md5(uniqid("bigtree-hash".microtime(true))))));
+			$hash = sqlescape(md5(md5($user["password"]).md5(uniqid("bigtree-hash".microtime(true)))));
 			sqlquery("UPDATE bigtree_users SET change_password_hash = '$hash' WHERE id = '".$user["id"]."'");
 
 			$login_root = ($bigtree["config"]["force_secure_login"] ? str_replace("http://","https://",ADMIN_ROOT) : ADMIN_ROOT)."login/";
@@ -2603,7 +2603,7 @@
 				module - The module id or entry to check access for.
 				item - (optional) The item of the module to check access for.
 				table - (optional) The group based table.
-				user - (optional) User object if checking for a user other than the logged in user.
+				user - (optional) User array if checking for a user other than the logged in user.
 
 			Returns:
 				The permission level for the given item or module (if item was not passed).
@@ -2962,7 +2962,7 @@
 		}
 
 		/*
-			Function: getCalloutAllowed
+			Function: getCalloutsAllowed
 				Returns a list of callouts the logged-in user is allowed access to.
 
 			Parameters:
@@ -5859,10 +5859,6 @@
 			if ($setting["value"] == "on") {
 				// Google
 				file_get_contents("http://www.google.com/webmasters/tools/ping?sitemap=".urlencode(WWW_ROOT."sitemap.xml"));
-				// Ask
-				file_get_contents("http://submissions.ask.com/ping?sitemap=".urlencode(WWW_ROOT."sitemap.xml"));
-				// Yahoo
-				file_get_contents("http://search.yahooapis.com/SiteExplorerService/V1/ping?sitemap=".urlencode(WWW_ROOT."sitemap.xml"));
 				// Bing
 				file_get_contents("http://www.bing.com/webmaster/ping.aspx?siteMap=".urlencode(WWW_ROOT."sitemap.xml"));
 			}
@@ -6398,9 +6394,6 @@
 
 			Parameters:
 				module - The id of the module to check access to.
-
-			Returns:
-				The permission level of the logged in user.
 		*/
 
 		function requirePublisher($module) {
@@ -7012,21 +7005,19 @@
 		*/
 
 		static function unCache($page) {
-			$get = array();
+			$url = "";
+
+			// Already have the path
 			if (is_array($page)) {
-				if (!$page["path"]) {
-					$get["bigtree_htaccess_url"] = "";
-				} else {
-					$get["bigtree_htaccess_url"] = $page["path"]."/";
-				}
+				$url = $page["path"]."/";
 			} else {
-				if ($page == 0) {
-					$get["bigtree_htaccess_url"] = "";
-				} else {
-					$get["bigtree_htaccess_url"] = str_replace(WWW_ROOT,"",BigTreeCMS::getLink($page));
+				if ($page != 0) {
+					$url = str_replace(WWW_ROOT,"",BigTreeCMS::getLink($page));
 				}
 			}
-			@unlink(md5(json_encode($get)).".page");
+
+			@unlink(md5(json_encode(array("bigtree_htaccess_url" => $url))).".page");
+			@unlink(md5(json_encode(array("bigtree_htaccess_url" => rtrim($url,"/")))).".page");
 		}
 
 		/*
@@ -7528,7 +7519,7 @@
 		/*
 			Function: updatePage
 				Updates a page.
-				Does not check permissions.
+				Checks some (but not all) permissions.
 
 			Parameters:
 				page - The page id to update.
@@ -7770,7 +7761,7 @@
 
 		/*
 			Function: updatePendingChange
-				Updated a pending change.
+				Updates a pending change.
 
 			Parameters:
 				id - The id of the pending change.
